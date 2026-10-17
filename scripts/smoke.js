@@ -2276,6 +2276,13 @@ async function formKit(browser) {
       expect(errs.length === 0, `page errors at ${w}px: ${errs.join(' | ')}`);
       const scroll = await pg.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(scroll <= 1, `horizontal overflow of ${scroll}px at ${w}px wide`);
+      if (!first) {   /* the narrowest phone: the day-template picker ("Training (this weekday)") shrinks to fit */
+        const vp = pg.viewportSize(); await pg.setViewportSize({ width: 320, height: vp.height });
+        await pg.evaluate(() => { document.querySelector('#dtpl option:checked').textContent = 'Heavy training day, upper body (this weekday)'; }); await pg.waitForTimeout(100);
+        const s320 = await pg.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expect(!(await pg.isHidden('#dtpl')) && s320 <= 1, `horizontal overflow of ${s320}px on the Daily Tracker at 320px wide`);
+        await pg.setViewportSize(vp);
+      }
       if (first) {
         /* signed out while a change is waiting: it must survive sign-in */
         await ctx.clearCookies();
