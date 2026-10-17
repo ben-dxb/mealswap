@@ -1,25 +1,28 @@
 body{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:16px max(16px,env(safe-area-inset-right)) 16px max(16px,env(safe-area-inset-left))}
-.card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:14px}
-h1{font-size:24px;font-weight:800;font-stretch:80%;margin:0}
+.card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:24px;display:flex;flex-direction:column;gap:14px}
+h1{font-size:28px;font-weight:800;font-stretch:var(--wd-display);text-transform:uppercase;line-height:1;margin:0}
+/* the illustrated logo (black, so the same in both themes) across the top of the sign-in and invite cards; it is the page's heading */
+h1.logoh{margin:-24px -24px 0;line-height:0}
+.logo{display:block;width:100%;height:auto;aspect-ratio:664/514;background:#000;border-radius:var(--r-card) var(--r-card) 0 0}
 .intro{margin:0;color:var(--muted);font-size:14px}
-.err{margin:0;background:var(--warnbg);color:var(--warnink);border-radius:8px;padding:8px 12px;font-size:14px}
+.err{margin:0;background:var(--warnbg);color:var(--warnink);border-radius:var(--r-ctl);padding:8px 12px;font-size:14px}
 form{display:flex;flex-direction:column;gap:10px}
 .f input{padding:8px 10px;font-size:15px}
 .btn{padding:10px 12px;font-size:15px}
-.google{display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:9px 12px;
+.google{display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--field-line);border-radius:var(--r-ctl);padding:9px 12px;
   text-decoration:none;color:var(--ink);font-weight:700;background:var(--surface)}
 .google:hover{background:var(--soft)}
 .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:var(--fs-xs)}
 .or::before,.or::after{content:"";flex:1;border-top:1px solid var(--line)}
 .switch{margin:0;text-align:center;font-size:14px}
-.link{border:0;background:none;color:var(--info);padding:0;text-decoration:underline}
+.link{border:0;background:none;color:var(--ink);padding:0;text-decoration:underline}
 .hint{margin:0;color:var(--muted);font-size:var(--fs-s)}
 /* the privacy page: a longer read, same card */
 .card.doc{max-width:680px;gap:10px}
-.doc h2{font-size:17px;font-weight:800;font-stretch:85%;margin:8px 0 0}
+.doc h2{font-size:18px;font-weight:800;font-stretch:var(--wd-label);margin:8px 0 0}
 .doc p,.doc ul{margin:0;font-size:14px;line-height:1.5}
 .doc ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
-.doc a{color:var(--info);overflow-wrap:anywhere}
+.doc a{color:var(--ink);overflow-wrap:anywhere}
 .foot{margin:0;text-align:center;font-size:var(--fs-s);color:var(--muted);display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 .foot a{color:var(--muted)}
 .errhome{text-align:center;text-decoration:none}
