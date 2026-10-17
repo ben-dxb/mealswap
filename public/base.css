@@ -17,7 +17,7 @@
   --bg:#F4F3F0; --surface:#FFFFFF; --raised:#FAF9F7; --ink:#141413; --muted:#5E5B55; --line:#E2E0DB;
   --accent:#141413; --accent-ink:#FFFFFF; --soft:#ECEAE5;
   --brand:#84642A; --brand-ink:#FFFFFF;   /* 4.9:1 on the page – the logo's gold itself is too faint on a light ground */
-  --good:#2E7A4E; --good-ink:#FFFFFF; --bad:#B03A2E; --info:#365F92; --warnbg:#FBF1DC; --warnink:#8A5A00;
+  --good:#276B44; --good-ink:#FFFFFF; --bad:#B03A2E; --info:#365F92; --warnbg:#FBF1DC; --warnink:#8A5A00;
   --field-line:#8A877F;   /* input, select and textarea borders: 3:1 against the page and the cards (WCAG 1.4.11) */
   --wm-hi:#141413; --wm-lo:#6E6B65;   /* the LOGBOOK wordmark's two-tone (the logo's chrome) */
   --fs-xs:12px; --fs-s:14px; --fs-m:16px; --fs-l:20px; --fs-xl:24px; --fs-2xl:32px; --fs-3xl:44px;   /* the type scale; nothing smaller than 12px */
