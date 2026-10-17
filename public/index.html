@@ -466,7 +466,7 @@
       <details class="adhelp" id="ad-m-help"><summary>Using Gmail</summary>
         <p>Gmail needs an <b>app password</b>, not your normal one: turn on 2-Step Verification for the Google account, then create an app password at
           <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a> and paste the 16 letters above.
-          Server <code>smtp.gmail.com</code>, port <code>465</code>. Outlook uses <code>smtp.office365.com</code>, port <code>587</code>. Any other provider’s SMTP details work too.</p>
+          Server <code>smtp.gmail.com</code>, port <code>465</code>. Outlook uses <code>smtp.office365.com</code>, port <code>587</code>. Any other provider’s SMTP details work too – prefer port <code>587</code> (STARTTLS), as some servers’ hosts (Hetzner Cloud) block 465, and the full mailbox address as user name.</p>
       </details>
       <p id="ad-mailmsg" class="sub" role="status"></p>
       <form id="ad-mailtest" class="adinvite">

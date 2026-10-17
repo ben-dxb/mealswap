@@ -193,7 +193,9 @@ On the Super admin page:
       provider hosts the domain's DNS it can add them for you (Spaceship lists the Spacemail records under
       Advanced DNS); otherwise copy them to where the DNS is held.
    2. Under *Provider* pick **Other (SMTP)** and enter the SMTP host and port your provider shows, the
-      mailbox address under *Send from* (and as the user name) and the mailbox's password. Save.
+      mailbox address under *Send from* (and as the user name – the full address, not just the part before @)
+      and the mailbox's password. Save. Prefer port `587` with STARTTLS over `465`: Hetzner Cloud (and many
+      other hosts) block outgoing traffic to port 465 unless you ask them to unblock it.
    3. **Send test email**, and check it arrives in the inbox, not spam.
    4. If the app sent from Gmail before, revoke that app password at
       <https://myaccount.google.com/apppasswords>.

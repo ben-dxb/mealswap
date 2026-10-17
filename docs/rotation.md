@@ -111,7 +111,8 @@ whatever that mailbox holds. Held sealed in the database (Super admin › Email)
 
 **Moving from Gmail to the app's own mailbox.** Add the domain's SPF, DKIM and DMARC records (a host that holds the
 domain's DNS, like Spaceship, can add them for you); on Super admin › Email pick *Other (SMTP)*, enter the SMTP host
-and port your provider shows, the mailbox address and its password, and Save; **Send test email**; then revoke the old
+and port your provider shows (port 587 with STARTTLS – Hetzner Cloud and many hosts block outgoing 465), the full
+mailbox address as the user name and its password, and Save; **Send test email**; then revoke the old
 Gmail app password at <https://myaccount.google.com/apppasswords>. Gmail still works, but an app password opens the
 whole Google mailbox, so it isn't recommended.
 
