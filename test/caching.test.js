@@ -96,7 +96,7 @@ test('pages: no-cache with a strong ETag, 304 only after the route has run; asse
     assert.match(r.headers.get('etag'), /^"[0-9a-f]{20,}"$/, p + ': a strong ETag');
     const html = await r.text(), list = refs(html);
     assert.ok(list.some(u => /\.js\?/.test(u)) && list.some(u => /\.css\?/.test(u)), p);
-    for (const u of list) { assert.match(u, /^\/[a-z0-9-]+\.(js|css|svg|png)\?v=[0-9a-f]{10}$/, `${p}: ${u}`); seen.add(u); }
+    for (const u of list) { assert.match(u, /^\/[a-z0-9-]+\.(js|css|svg|png|webp)\?v=[0-9a-f]{10}$/, `${p}: ${u}`); seen.add(u); }
     const again = await fetch(BASE + p, { headers: { 'if-none-match': r.headers.get('etag'), 'cache-control': 'max-age=0',   /* as a browser revalidates (fetch would add no-cache) */
        ...(p === '/' ? { cookie: ann.cookie() } : {}) } });
     assert.strictEqual(again.status, 304, p + ' revalidates');

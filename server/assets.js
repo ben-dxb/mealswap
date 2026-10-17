@@ -1,5 +1,5 @@
 'use strict';
-/* Versioned static files. Each script, stylesheet and icon (svg, png, ico) in public/ gets a short hash of its content; the HTML pages
+/* Versioned static files. Each script, stylesheet, icon and image (svg, png, ico, webp) in public/ gets a short hash of its content; the HTML pages
    are served with their references rewritten to /app.js?v=<hash>. A query string rather than a renamed file keeps the
    file server, the CSP ('self') and every old reference working as they are: the name on disk never changes.
    - /app.js?v=<its current hash>: cached for a year, immutable – a new deploy changes the hash, so the page asks for a new URL.
@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
-const ASSET = /\.(js|css|svg|png|ico)$/;
+const ASSET = /\.(js|css|svg|png|ico|webp)$/;
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 
 /* fill: { 'page.html': html => html } – a page's own last step (the privacy page puts in who runs the app) */
