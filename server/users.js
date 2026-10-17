@@ -51,12 +51,15 @@ function newLink(user, admin) {
   return `${config.baseUrl}/invite#${token}`;
 }
 
+/* whitespace and control characters (CR/LF too) as one space, like a share link's label – a name is one line of the email */
+const oneLine = v => String(v == null ? '' : v).replace(/[\s\x00-\x1f\x7f]+/g, ' ').trim();
+
 async function sendInvite(user, link, admin) {
-  const who = admin.name ? `${admin.name} (${admin.email})` : admin.email;
+  const who = admin.name ? `${oneLine(admin.name)} (${admin.email})` : admin.email;
   await mail.send({
     to: user.email, replyTo: admin.email,
     subject: 'You’re invited to Logbook Monster',
-    text: `Hi${user.name ? ' ' + user.name : ''},\n\n${who} has invited you to Logbook Monster, for meal plans, weight and gym tracking.\n\n`
+    text: `Hi${user.name ? ' ' + oneLine(user.name) : ''},\n\n${who} has invited you to Logbook Monster, for meal plans, weight and gym tracking.\n\n`
       + `Open this link to pick a password and sign in:\n${link}\n\n`
       + `The link works once and runs out in ${INVITE_DAYS} days. If you weren’t expecting this, you can ignore this email.\n`,
   });
@@ -66,7 +69,7 @@ async function sendInvite(user, link, admin) {
    Always returns the link so the admin can pass it on if the email doesn't arrive. */
 async function invite({ email, name }, admin) {
   email = String(email || '').trim().toLowerCase();
-  name = String(name || '').trim().slice(0, 100) || null;
+  name = oneLine(name).slice(0, 100) || null;
   if (!mail.EMAIL_RE.test(email)) { const e = new Error('Enter a valid email address'); e.status = 400; throw e; }
   let user = q.byEmail.get(email);
   if (user && !pending(user)) { const e = new Error('That person already has an account'); e.status = 409; throw e; }
@@ -110,7 +113,9 @@ function drop(id) {
    Super admin page would have nobody (or, without ADMIN_EMAILS, whichever account is oldest next). */
 function removeOwn(user, isAdmin) {
   if (isAdmin(user)) {
-    const others = config.adminEmails.length ? q.list.all().filter(u => u.id !== user.id && config.adminEmails.includes(u.email)).length : 0;
+    /* only one who can sign in counts: an invited admin who never set a password, linked Google or signed in doesn't */
+    const others = config.adminEmails.length ? q.list.all().filter(u => u.id !== user.id && config.adminEmails.includes(u.email)
+      && (u.has_password || u.has_google || u.last_login_at)).length : 0;
     if (!others) {
       const e = new Error(config.adminEmails.length
         ? 'You’re the only super admin. Add another person’s address to ADMIN_EMAILS (and let them sign in) before you delete your account.'

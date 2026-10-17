@@ -305,7 +305,7 @@ async function twoTabsOneDay(ctx) {
 async function twoStep(browser, w, h) {
   const totp = require('../server/totp'), email = `smoke2fa${w}@example.com`;
   const ctx = await browser.newContext({ viewport: { width: w, height: h } }), pg = await ctx.newPage(), errs = [];
-  pg.on('pageerror', e => errs.push(e.message)); pg.on('dialog', d => { errs.push('browser dialog: ' + d.message()); d.dismiss(); });   /* (wrong codes are refused on purpose, so no console-error check here) */
+  pg.on('pageerror', e => errs.push(e.message));   /* (wrong codes are refused on purpose, so no console-error check here) */
   const overflow = async what => { const x = await pg.evaluate(() => document.documentElement.scrollWidth - window.innerWidth); expect(x <= 1, `horizontal overflow of ${x}px ${what} at ${w}px wide`); };
   const login = async () => { await pg.goto(BASE + '/login'); await pg.fill('#email', email); await pg.fill('#password', 'tidy-pass-phrase-1'); await pg.click('#submit'); };
   await login(); await pg.waitForSelector('#v-dash:not([hidden])');
@@ -347,16 +347,25 @@ async function twoStep(browser, w, h) {
   await pg.fill('#code', code(1)); await pg.click('#codebtn');
   await pg.waitForSelector('#v-dash:not([hidden])');
   await pg.click('#acct>summary'); await pg.click('#logout'); await pg.waitForURL(/\/login/);
+  let native = ''; pg.once('dialog', d => { native = d.message(); d.accept(); });
   await login(); await pg.waitForSelector('#second:not([hidden]) #code');
   await pg.fill('#code', recovery); await pg.click('#codebtn');
-  /* the app's own notice (one button), not a browser alert */
-  await pg.waitForSelector('#ask[open]', { timeout: 5000 });
-  expect(await pg.isHidden('#ask-no') && await pg.evaluate(() => document.activeElement.id) === 'ask-yes', 'the recovery-code notice should have one button, focused');
-  const said = await pg.textContent('#ask-t'); await pg.click('#ask-yes');   /* Continue goes on to the app */
   await pg.waitForSelector('#v-dash:not([hidden])');
-  expect(/recovery code/.test(said), 'using a recovery code should say it won’t work again');
-  await pg.click('#acct>summary'); await pg.click('#tfbox>summary');
-  await pg.waitForFunction(() => /9 recovery codes left/.test(document.querySelector('#tfbody').textContent), null, { timeout: 5000 });
+  /* no alert(): the app opens Two-step sign-in on the account menu and says there that the code won't work again */
+  await pg.waitForFunction(() => /9 recovery codes left/.test(document.querySelector('#tfbody').textContent)
+    && /recovery code – it won’t work again/.test(document.querySelector('#tfmsg').textContent), null, { timeout: 5000 });
+  expect(!native && await pg.evaluate(() => document.querySelector('#acct').open && document.activeElement === document.querySelector('#tfbox>summary')),
+    'using a recovery code should open Two-step sign-in and say it won’t work again, without a native dialog');
+  await overflow('after a recovery code sign-in');
+  /* Account admin › Security & data opens the same boxes on the account menu */
+  await pg.goto(BASE + '/#account/security'); await pg.waitForSelector('#ad-tfopen');
+  await pg.evaluate(() => { document.querySelector('#acct').open = false; document.querySelector('#tfbox').open = false; });
+  await pg.click('#ad-tfopen');
+  await pg.waitForFunction(() => document.querySelector('#acct').open && document.querySelector('#tfbox').open && /recovery codes left/.test(document.querySelector('#tfbody').textContent), null, { timeout: 5000 });
+  await pg.evaluate(() => { document.querySelector('#acct').open = false; });
+  await pg.click('#ad-pwopen');
+  expect(await pg.evaluate(() => document.querySelector('#acct').open && document.querySelector('#pwbox').open && document.activeElement === document.querySelector('#pwbox>summary')),
+    'Security & data’s Change password should open it on the account menu');
   expect(errs.length === 0, 'page errors: ' + errs.join(' | '));
   await ctx.close();
 }
@@ -436,6 +445,13 @@ async function trackerP5(browser, w, h) {
   /* a failed AI read is said once, not "The AI couldn’t read …: The AI couldn’t …" */
   const job = await pg.evaluate(() => { JOBS = [{ id: 1, kind: 'plan', status: 'failed', label: 'a.pdf', error: 'The AI couldn’t find a meal plan in that file' }]; jRender(); const t = $('#jobs').textContent; JOBS = []; jRender(); return t; });
   expect(/^Your meal plan \(a\.pdf\) wasn’t read: The AI couldn’t find a meal plan in that file\./.test(job), 'job failure text: ' + job);
+  /* a saved day's kcal fits its calendar cell (under its ✓ on a phone), and the menu wraps rather than scroll the page at 700px */
+  await pg.goto(BASE + '/#day'); await pg.click('#status [data-act=savenow]'); await pg.waitForSelector('#status [data-act=unlog]');
+  await pg.goto(BASE + '/#history'); await pg.waitForSelector('#cal .kc');
+  expect(await pg.evaluate(() => [...document.querySelectorAll('#cal .kc')].every(k => k.scrollWidth <= k.clientWidth + 0.5)), 'a calendar cell cuts off its kcal');
+  await pg.setViewportSize({ width: 700, height: h }); await pg.waitForFunction(() => document.documentElement.clientWidth === 700);
+  expect(await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 0, 'the page scrolls sideways at 700px wide');
+  await pg.setViewportSize({ width: w, height: h });
   /* signing out with an unsaved plan asks first (the app's own dialog, before the session goes) – Stay keeps it all */
   await pg.goto(BASE + '/#account'); await pg.waitForSelector('#v-admin:not([hidden]) [data-ad=tadd]'); await pg.click('[data-ad=tadd]');
   await pg.click('#acct>summary'); await pg.click('#logout');
@@ -1068,6 +1084,7 @@ async function phase5Library(browser) {
   await pg.evaluate(() => { GY = null; SUPPS = null; });
 
   /* the workout builder: picks, moves and × keep focus where it makes sense, and say what happened */
+  const beforeGym = await pg.evaluate(() => location.hash);
   await hash('#gym/new', '#g-picklist');
   for (const id of ids) { await pg.focus(`#g-picklist [data-g=pick][data-id="${id}"]`); await pg.keyboard.press('Enter'); }
   expect(await on() === `|pick|`, 'a pick should keep focus on the exercise picked, not ' + await on());
@@ -1082,10 +1099,16 @@ async function phase5Library(browser) {
   /* unsaved: a link away asks; Stay keeps the draft, Leave drops it */
   await pg.click('a[data-view=foods]');
   expect(/changed this workout/.test(await answer(pg, false)) && await pg.evaluate(() => location.hash === '#gym/new' && gDraft.items.length === 3), 'Stay keeps the workout being built');
+  const histLen = await pg.evaluate(() => history.length);
   await pg.evaluate(() => history.back()); await pg.waitForSelector('#ask[open]');
   await answer(pg, false);
-  expect(await pg.evaluate(() => location.hash === '#gym/new' && !!$('#g-wname')), 'Back with unsaved changes asks first and stays on the builder');
-  await pg.click('a[data-view=foods]'); await answer(pg, true); await pg.waitForSelector('#v-foods:not([hidden])');
+  await pg.waitForFunction(() => location.hash === '#gym/new', null, { timeout: 3000 });
+  expect(await pg.evaluate(n => location.hash === '#gym/new' && !!$('#g-wname') && gDraft.items.length === 3 && history.length === n, histLen), 'Back with unsaved changes asks first and stays on the builder, history as it was');
+  /* Stay kept the page before in history: Back again (Leave) reaches it */
+  await pg.evaluate(() => history.back()); await pg.waitForSelector('#ask[open]');
+  await answer(pg, true);
+  await pg.waitForFunction(h => location.hash === h, beforeGym, { timeout: 3000 });
+  await hash('#foods', '#v-foods:not([hidden])');
 
   /* an exercise: ▲ and 🏆 in words, Log set keeps focus and is announced, the set bar never covers the focused control */
   await hash('#gym/e/' + ids[0], '#g-quick');
@@ -1094,6 +1117,13 @@ async function phase5Library(browser) {
   await pg.focus('#g-log'); await pg.keyboard.press('Enter');
   await pg.waitForFunction(() => /^Logged /.test((document.querySelector('#live') || {}).textContent || '') && !gSending.size, null, { timeout: 5000 });
   expect(await on() === 'g-log||', 'Log set keeps focus on its button: ' + await on());
+  /* a fast double tap logs one set, even when the first tap's set has already landed */
+  const nSets = () => pg.evaluate(id => fetch('/api/gym/sets?exercise=' + id).then(r => r.json()).then(j => (j.sets || j).length), ids[0]);
+  const before = await nSets();
+  await tapGap(pg); await pg.click('#g-log'); await pg.waitForFunction(() => !gSending.size, null, { timeout: 5000 });
+  await pg.waitForTimeout(100); await pg.click('#g-log'); await pg.waitForTimeout(150);
+  await pg.waitForFunction(() => !gSending.size, null, { timeout: 5000 });
+  expect(await nSets() === before + 1, `a double tap on Log set logged ${await nSets() - before} sets`);
   await pg.focus('[data-g=tab][data-t=records]'); await pg.keyboard.press('Enter'); await pg.waitForSelector('.wstats');
   expect(await on() === '|tab|', 'a tab keeps focus');
   await pg.focus('[data-g=tab][data-t=sets]'); await pg.keyboard.press('Enter'); await pg.waitForSelector('.gday');
@@ -1847,6 +1877,7 @@ async function formKit(browser) {
       expect(!(await cp.locator('#t-aibtn, #t-expick, .tclink, input[type=number]').count()), 'the coach page should have nothing to edit');
       await cp.click('#c-days .cday >> nth=0'); await cp.waitForFunction(() => document.querySelector('#t-card').open && /Atlantis hack squat/.test(document.querySelector('#t-card').textContent), null, { timeout: 5000 });
       expect(await cp.locator('#t-card .tcphotos .ptile img').count() >= 1, 'the coach should see the latest photos');
+      { const card = await cp.textContent('#t-card'); expect(/\d kg/.test(card) && !/\dkg/.test(card), 'the day card should write weights as “81.4 kg”: ' + (card.match(/.{0,20}\dkg.{0,10}/) || [''])[0]); }
       await cp.waitForFunction(() => [...document.querySelectorAll('#t-card .tcphotos img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 5000 });
       const coachScroll = await cp.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(coachScroll <= 1, `horizontal overflow of ${coachScroll}px on the coach page at ${w}px wide`);
@@ -1971,8 +2002,15 @@ async function formKit(browser) {
         await pg.waitForSelector('#v-admin:not(.mine):not([hidden]) #ad-aipanel:not([hidden])');
         expect(await pg.isHidden('#ad-ph') && await pg.isHidden('.adbar') && await pg.isHidden('#ad-wh') && await pg.isHidden('#ad-fh'), 'super admin should have no plan editor');
         expect(/Not set up/.test(await pg.textContent('#ad-aikeystate')), 'AI should start not set up');
+        await pg.fill('#ad-tm-plan', 'smoke/typed-model');   /* typed, not saved: saving the key keeps it */
         await pg.fill('#ad-key', 'sk-or-v1-smoke-test-key'); await pg.click('#ad-keyform button[type=submit]');
         await pg.waitForFunction(() => /Set up/.test(document.querySelector('#ad-aikeystate').textContent), null, { timeout: 5000 });
+        expect(await pg.inputValue('#ad-tm-plan') === 'smoke/typed-model', 'a typed model should survive saving the key');
+        await pg.fill('#ad-tm-plan', '');
+        await pg.waitForSelector('[data-ky-in=ai]', { timeout: 5000 });
+        await pg.fill('[data-ky-in=ai]', 'sk-or-v1-next-pasted'); await pg.evaluate(() => { document.activeElement.blur(); return kyLoad(); });
+        expect(await pg.inputValue('[data-ky-in=ai]') === 'sk-or-v1-next-pasted', 'a pasted next key should survive a Keys refresh');
+        await pg.fill('[data-ky-in=ai]', '');
         await pg.fill('#ad-tm-food', 'openai/gpt-4o-mini'); await pg.click('#ad-modelform button[type=submit]');
         await pg.waitForFunction(() => /Models saved/.test(document.querySelector('#ad-keymsg').textContent), null, { timeout: 5000 });
         expect(await pg.inputValue('#ad-tm-food') === 'openai/gpt-4o-mini' && await pg.inputValue('#ad-tm-plan') === '', 'each task keeps its own model');
@@ -1981,6 +2019,12 @@ async function formKit(browser) {
         await pg.click('#ad-tabs [data-adt=email]'); await pg.waitForSelector('[data-adtab=email]:not([hidden])');
         expect(/Not set up/.test(await pg.textContent('#ad-mailstate')), 'email should start not set up');
         expect(await pg.inputValue('#ad-m-host') === 'smtp.gmail.com', 'Gmail should be the default email server');
+        /* a key rotation refreshes the state, not fields typed but not saved */
+        await pg.fill('#ad-m-from', 'typed@example.com'); await pg.fill('#ad-m-host', 'smtp.typed.example');
+        await pg.evaluate(() => kyAfter('mail'));
+        expect(await pg.inputValue('#ad-m-from') === 'typed@example.com' && await pg.inputValue('#ad-m-host') === 'smtp.typed.example', 'typed email fields should survive a rotation refresh');
+        await pg.evaluate(() => amFill());
+        expect(await pg.inputValue('#ad-m-host') === 'smtp.gmail.com' && await pg.inputValue('#ad-m-from') === '', 'amFill() puts the settings in use back');
         /* with .env settings, Save sends only what was changed (the rest stays from .env) and says where each value comes from */
         const am = await pg.evaluate(() => {
           const keep = AM;
@@ -2043,6 +2087,11 @@ async function formKit(browser) {
         expect(await pg.isVisible('#ad-keybanner') && /unknown age/.test(await pg.textContent('#ad-keybanner')), 'a credential of unknown age should show the banner');
         const kyScroll = await pg.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         expect(kyScroll <= 1, `horizontal overflow of ${kyScroll}px on the Keys tab at ${w}px wide`);
+        /* the old key's steps are said once while it's kept (the server drops them once Test old proved it dead) */
+        const kn = await pg.evaluate(() => { const keep = KY.slots, c = { name: 'OPENROUTER', next: 'To rotate: make a new one at the provider, Save as next, Test next, Promote, revoke the old one, Test old. Revoke the old one at the provider, then Test old – it must fail.' };
+          KY.slots = { ...keep, ai: { old: true, oldUntil: 123 } }; const live = kyNext(c); KY.slots = { ...keep, ai: {} }; const none = kyNext(c); KY.slots = keep; return { live, none }; });
+        expect(kn.live === 'To rotate: make a new one at the provider, Save as next, Test next, Promote. Revoke the old one at the provider, then Test old – it must fail.' && kn.none === kn.live.replace('Promote. Revoke', 'Promote, revoke the old one, Test old. Revoke'), 'Keys next steps: ' + JSON.stringify(kn));
+        expect(/allows only one password: change it there, then straight away Save as next → Test next → Promote/.test(await pg.evaluate(() => { kyRot('mail'); return document.querySelector('#ad-rot-mail').textContent; })), 'the Email rotation box should cover a one-password provider');
         await pg.click('#ad-tabs [data-adt=ai]'); await pg.waitForSelector('[data-adtab=ai]:not([hidden]) [data-ky-form=ai]');
         expect(await pg.isDisabled('[data-ky=promote][data-k=ai]'), 'Promote is off until a next key is saved');
         await pg.fill('[data-ky-in=ai]', 'sk-or-v1-smoke-next-key'); await pg.click('[data-ky-form=ai] button[type=submit]');
